@@ -1,0 +1,17 @@
+Card style backups (2026-09-07)
+
+Live app is now the classic style: white cards, no leaf/maroon background.
+
+styles.classic.css
+  White cards, green header, navy text.
+
+styles.khmer-cards.css
+  Maroon cards, gold text, Bodhi leaf pattern.
+
+styles.white-leaf.css
+  White cards with gold leaf pattern (brief intermediate look).
+
+Restore maroon cards:
+  cp src/backups/styles.khmer-cards.css src/styles.css
+  Put this back inside .aba-hero in DashboardPage.tsx:
+    <span className="khmer-ornament" aria-hidden="true" />
