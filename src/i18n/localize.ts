@@ -19,6 +19,9 @@ const SEED_NAMES: Record<string, TranslationKey> = {
 const ERROR_MESSAGES: Record<string, TranslationKey> = {
   "This record is still in use and cannot be deleted.": "error.inUse",
   "An account with this email already exists.": "error.emailExists",
+  "Full name is required.": "validation.fullNameRequired",
+  "Username must be at least 3 characters.": "validation.usernameLength",
+  "Password must be at least 6 characters.": "validation.passwordLength",
   "That username is already taken.": "validation.usernameTaken",
   "Incorrect email or password.": "error.badCredentials",
   "Incorrect username or password.": "toast.badLogin",
@@ -30,6 +33,8 @@ const ERROR_MESSAGES: Record<string, TranslationKey> = {
   "You cannot delete your own account.": "settings.cannotDeleteSelf",
   "You cannot change the built-in admin role.": "settings.cannotChangeAdmin",
   "User not found.": "settings.userNotFound",
+  "Sign out and sign in again to load cloud users.": "settings.needRelogin",
+  "Unable to save your data.": "error.saveFailed",
   "Unable to load transactions.": "tx.loadError",
   "Unable to add transaction.": "error.saveFailed",
   "Unable to update transaction.": "error.saveFailed",

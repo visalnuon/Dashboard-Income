@@ -14,6 +14,7 @@ import {
   listManagedUsers,
   localSessionToProfile,
   normalizeRole,
+  patchLocalSession,
   readLocalSession,
   updateLocalUser,
   updateLocalUserRole,
@@ -22,6 +23,17 @@ import {
   type ManagedUser,
   type UserRole,
 } from "../services/localAuth";
+import {
+  canUseCloudUsers,
+  cloudDeleteUser,
+  cloudListUsers,
+  cloudLogin,
+  cloudRegister,
+  cloudUpdateName,
+  cloudUpdatePassword,
+  cloudUpdateUserRole,
+} from "../services/cloudUsers";
+import { resetFinanceCache } from "../services/localFinance";
 import type { Profile } from "../types/database";
 
 type AuthContextValue = {
@@ -33,10 +45,11 @@ type AuthContextValue = {
   isAuthed: boolean;
   role: UserRole;
   isAdmin: boolean;
+  cloudSynced: boolean;
   signIn: (username: string, password: string, remember?: boolean) => Promise<void>;
   signUp: (fullName: string, username: string, password: string) => Promise<{ needsConfirmation: boolean }>;
   createUser: (fullName: string, username: string, password: string, role: UserRole) => Promise<ManagedUser>;
-  listUsers: () => ManagedUser[];
+  listUsers: () => Promise<ManagedUser[]>;
   updateUserRole: (userId: string, role: UserRole) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -54,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(() => isSupabaseConfigured);
 
   const applyLocalSession = useCallback((next: LocalSession | null) => {
+    resetFinanceCache();
     setLocalUser(next);
     setProfile(localSessionToProfile(next));
   }, []);
@@ -120,12 +134,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthed: Boolean(session) || Boolean(localUser) || Boolean(readLocalSession()),
       role,
       isAdmin,
+      cloudSynced: canUseCloudUsers() && Boolean(localUser?.token),
       signIn: async (username, password, remember = true) => {
         if (isDemoLogin(username, password)) {
-          const next = demoSessionFromLogin();
+          const next: LocalSession = { ...demoSessionFromLogin() };
+          if (canUseCloudUsers()) {
+            try {
+              const cloud = await cloudLogin(username, password);
+              next.token = cloud.token;
+            } catch {
+              // Cloud is optional for the built-in admin login.
+            }
+          }
           writeLocalSession(next, remember);
           applyLocalSession(next);
           return;
+        }
+        if (canUseCloudUsers()) {
+          try {
+            const cloud = await cloudLogin(username, password);
+            const next: LocalSession = {
+              userId: cloud.id,
+              username: cloud.username,
+              fullName: cloud.fullName,
+              role: cloud.role,
+              token: cloud.token,
+            };
+            writeLocalSession(next, remember);
+            applyLocalSession(next);
+            return;
+          } catch (error) {
+            if (!(error instanceof Error) || error.message !== "Incorrect username or password.") {
+              throw error;
+            }
+          }
         }
         const local = await authenticateLocalUser(username, password);
         if (local) {
@@ -146,6 +188,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Incorrect username or password.");
       },
       signUp: async (fullName, username, password) => {
+        if (canUseCloudUsers()) {
+          const cloud = await cloudRegister({ fullName, username, password, role: "user" });
+          const next: LocalSession = {
+            userId: cloud.id,
+            username: cloud.username,
+            fullName: cloud.fullName,
+            role: cloud.role,
+            token: cloud.token,
+          };
+          writeLocalSession(next, true);
+          applyLocalSession(next);
+          return { needsConfirmation: false };
+        }
         if (isSupabaseConfigured && username.includes("@")) {
           const result = await signUp(fullName, username.trim(), password);
           return { needsConfirmation: !result.session };
@@ -163,6 +218,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       createUser: async (fullName, username, password, nextRole) => {
         requireAdmin();
+        if (canUseCloudUsers()) {
+          if (!localUser?.token) throw new Error("Sign out and sign in again to load cloud users.");
+          const cloud = await cloudRegister({
+            fullName,
+            username,
+            password,
+            role: nextRole,
+            adminToken: localUser.token,
+          });
+          return {
+            id: cloud.id,
+            username: cloud.username,
+            fullName: cloud.fullName,
+            role: cloud.role,
+            createdAt: cloud.createdAt,
+            builtIn: false,
+          };
+        }
         const account = await createLocalUser({ fullName, username, password, role: nextRole });
         return {
           id: account.id,
@@ -173,12 +246,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           builtIn: false,
         };
       },
-      listUsers: () => {
+      listUsers: async () => {
         requireAdmin();
+        const builtin = listManagedUsers().filter((user) => user.builtIn);
+        if (canUseCloudUsers()) {
+          if (!localUser?.token) throw new Error("Sign out and sign in again to load cloud users.");
+          const cloud = await cloudListUsers(localUser.token);
+          return [...builtin, ...cloud];
+        }
         return listManagedUsers();
       },
       updateUserRole: async (userId, nextRole) => {
         requireAdmin();
+        if (canUseCloudUsers()) {
+          if (!localUser?.token) throw new Error("Sign out and sign in again to load cloud users.");
+          if (userId === DEMO_USER_ID) throw new Error("You cannot change the built-in admin role.");
+          const updated = await cloudUpdateUserRole(localUser.token, userId, nextRole);
+          if (localUser.userId === userId) {
+            const next = { ...localUser, role: updated.role };
+            patchLocalSession(next);
+            applyLocalSession(next);
+          }
+          return;
+        }
         const updated = await updateLocalUserRole(userId, nextRole);
         if (localUser?.userId === userId) {
           applyLocalSession({ ...localUser, role: updated.role });
@@ -186,6 +276,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       deleteUser: async (userId) => {
         requireAdmin();
+        if (canUseCloudUsers()) {
+          if (!localUser?.token) throw new Error("Sign out and sign in again to load cloud users.");
+          await cloudDeleteUser(localUser.token, userId);
+          return;
+        }
         deleteLocalUser(userId, localUser?.userId);
       },
       signOut: async () => {
@@ -198,8 +293,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       updateName: async (fullName) => {
         if (localUser && !session?.user) {
+          if (canUseCloudUsers() && localUser.token) {
+            const cloud = await cloudUpdateName(localUser.token, fullName);
+            const next = { ...localUser, fullName: cloud.fullName };
+            patchLocalSession(next);
+            applyLocalSession(next);
+            return;
+          }
           if (localUser.userId === DEMO_USER_ID) {
             const next = { ...localUser, fullName };
+            patchLocalSession(next);
             applyLocalSession(next);
             setProfile({ ...DEMO_PROFILE, full_name: fullName });
             return;
@@ -215,6 +318,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       changePassword: async (password) => {
         if (localUser && !session?.user) {
+          if (canUseCloudUsers() && localUser.token) {
+            await cloudUpdatePassword(localUser.token, password);
+            return;
+          }
           if (localUser.userId === DEMO_USER_ID) return;
           await updateLocalUser(localUser.userId, { password });
           return;

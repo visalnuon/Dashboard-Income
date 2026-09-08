@@ -24,6 +24,7 @@ export type LocalSession = {
   username: string;
   fullName: string;
   role: UserRole;
+  token?: string;
 };
 
 export type ManagedUser = {
@@ -196,17 +197,18 @@ export async function updateLocalUser(
   if (values.password) account.passwordHash = await hashPassword(values.password);
   if (values.role) account.role = normalizeRole(values.role);
   writeUsers(users);
+  const current = readLocalSession();
   patchLocalSession({
     username: account.username,
     fullName: account.fullName,
     userId: account.id,
     role: account.role,
+    token: current?.token,
   });
   return toProfile(account);
 }
 
 function serializeSession(session: LocalSession) {
-  if (session.userId === DEMO_USER_ID) return "1";
   return JSON.stringify(session);
 }
 
@@ -229,6 +231,7 @@ function parseSession(raw: string | null): LocalSession | null {
         username: parsed.username,
         fullName: parsed.fullName,
         role: parsed.userId === DEMO_USER_ID ? "admin" : normalizeRole(account?.role ?? parsed.role),
+        token: parsed.token,
       };
     }
   } catch {

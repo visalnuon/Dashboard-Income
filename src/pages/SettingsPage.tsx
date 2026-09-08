@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { SetupBanner } from "./SetupPage";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { UsersAdmin } from "../components/UsersAdmin";
 import { useAuth } from "../hooks/useAuth";
@@ -8,7 +9,7 @@ import { useToast } from "../hooks/useToast";
 import { TextField } from "../components/Field";
 
 export function SettingsPage() {
-  const { user, profile, updateName, changePassword, signOut, isAdmin } = useAuth();
+  const { user, profile, updateName, changePassword, signOut, isAdmin, configured } = useAuth();
   const { dark, toggle } = useTheme();
   const { notify } = useToast();
   const { t } = useLanguage();
@@ -58,6 +59,7 @@ export function SettingsPage() {
 
   return (
     <div className="settings-grid">
+      {isAdmin && !configured ? <SetupBanner /> : null}
       {isAdmin ? <UsersAdmin /> : null}
 
       <section className="panel">

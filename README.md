@@ -11,26 +11,24 @@ npm run dev
 
 Then open the local URL shown by Vite.
 
-## Included
+## Cloud sharing (users + money on every device)
 
-- Responsive finance dashboard
-- Dark/light theme toggle
-- Income, expense, category, budget, and account navigation
-- Summary cards
-- SVG income vs expense chart
-- SVG expense breakdown donut
-- Recent transaction table
-- Search/filter transactions
-- Add transaction modal
-- Clean structure ready for Supabase integration
+1. Create a free project at [supabase.com](https://supabase.com).
+2. Open **SQL Editor** and run `supabase/migrations/20260908120000_app_users.sql` (run the whole file once).
+3. Copy `.env.example` to `.env` and add:
 
-## Next step: Supabase
+```
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+```
 
-The current version uses demo data so it works immediately. Connect Supabase by adding:
-- `@supabase/supabase-js`
-- authentication
-- PostgreSQL tables for profiles, income, expenses, categories, accounts, budgets
-- Row Level Security policies
-- service/data functions
+4. Restart `npm run dev`. On Vercel, add the same two values, then redeploy.
+5. Sign out and sign in as `admin` / `admin 123`.
 
-The UI can then be wired to real user data without changing the overall layout.
+After that:
+
+- Anyone who taps **Create user** on any phone is saved in the cloud.
+- Admin sees every account in **Settings**.
+- Each person’s income, expenses, accounts, budgets, and categories follow them to every device.
+
+Without those keys, the app still works on this browser only.

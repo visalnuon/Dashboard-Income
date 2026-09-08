@@ -1,4 +1,5 @@
-import { isSupabaseConfigured, supabase } from "../lib/supabase";
+import { usesSupabaseAuthTables } from "../lib/dataMode";
+import { supabase } from "../lib/supabase";
 import type {
   TransactionFilters,
   TransactionInsert,
@@ -55,7 +56,7 @@ async function fetchTransactions(filters: Omit<TransactionFilters, "page" | "pag
 }
 
 export async function listTransactions(filters: TransactionFilters = {}) {
-  if (!isSupabaseConfigured) return localListTransactions(filters);
+  if (!usesSupabaseAuthTables()) return localListTransactions(filters);
   const page = filters.page ?? 1;
   const pageSize = filters.pageSize ?? 10;
   const rows = await fetchTransactions(filters);
@@ -68,12 +69,12 @@ export async function listTransactions(filters: TransactionFilters = {}) {
 }
 
 export async function listAllTransactions(filters: Omit<TransactionFilters, "page" | "pageSize"> = {}) {
-  if (!isSupabaseConfigured) return localListAllTransactions(filters);
+  if (!usesSupabaseAuthTables()) return localListAllTransactions(filters);
   return fetchTransactions(filters);
 }
 
 export async function createTransaction(values: TransactionInsert) {
-  if (!isSupabaseConfigured) return localCreateTransaction(values);
+  if (!usesSupabaseAuthTables()) return localCreateTransaction(values);
   const { data, error } = await supabase
     .from("transactions")
     .insert(values)
@@ -85,7 +86,7 @@ export async function createTransaction(values: TransactionInsert) {
 }
 
 export async function updateTransaction(id: string, values: TransactionUpdate) {
-  if (!isSupabaseConfigured) return localUpdateTransaction(id, values);
+  if (!usesSupabaseAuthTables()) return localUpdateTransaction(id, values);
   const { data, error } = await supabase
     .from("transactions")
     .update(values)
@@ -98,8 +99,8 @@ export async function updateTransaction(id: string, values: TransactionUpdate) {
 }
 
 export async function deleteTransaction(id: string) {
-  if (!isSupabaseConfigured) {
-    localDeleteTransaction(id);
+  if (!usesSupabaseAuthTables()) {
+    await localDeleteTransaction(id);
     return;
   }
   const { error } = await supabase.from("transactions").delete().eq("id", id);

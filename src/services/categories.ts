@@ -1,4 +1,5 @@
-import { isSupabaseConfigured, supabase } from "../lib/supabase";
+import { usesSupabaseAuthTables } from "../lib/dataMode";
+import { supabase } from "../lib/supabase";
 import type { Category, CategoryInsert, TransactionType } from "../types/database";
 import { friendlyError } from "../utils/validation";
 import {
@@ -9,7 +10,7 @@ import {
 } from "./localFinance";
 
 export async function listCategories(type?: TransactionType) {
-  if (!isSupabaseConfigured) return localListCategories(type);
+  if (!usesSupabaseAuthTables()) return localListCategories(type);
   let query = supabase.from("categories").select("*").order("name", { ascending: true });
   if (type) query = query.eq("type", type);
   const { data, error } = await query;
@@ -18,14 +19,14 @@ export async function listCategories(type?: TransactionType) {
 }
 
 export async function createCategory(values: CategoryInsert) {
-  if (!isSupabaseConfigured) return localCreateCategory(values);
+  if (!usesSupabaseAuthTables()) return localCreateCategory(values);
   const { data, error } = await supabase.from("categories").insert(values).select("*").single();
   if (error) throw new Error(friendlyError(error, "Unable to create category."));
   return data as Category;
 }
 
 export async function updateCategory(id: string, values: Partial<CategoryInsert>) {
-  if (!isSupabaseConfigured) return localUpdateCategory(id, values);
+  if (!usesSupabaseAuthTables()) return localUpdateCategory(id, values);
   const { data, error } = await supabase
     .from("categories")
     .update(values)
@@ -37,8 +38,8 @@ export async function updateCategory(id: string, values: Partial<CategoryInsert>
 }
 
 export async function deleteCategory(id: string) {
-  if (!isSupabaseConfigured) {
-    localDeleteCategory(id);
+  if (!usesSupabaseAuthTables()) {
+    await localDeleteCategory(id);
     return;
   }
   const { error } = await supabase.from("categories").delete().eq("id", id);

@@ -1,15 +1,17 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SelectField, TextField } from "./Field";
+import { LoadingState } from "./Status";
 import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../hooks/useLanguage";
 import { useToast } from "../hooks/useToast";
 import { localizeError } from "../i18n/localize";
+import { canUseCloudUsers } from "../services/cloudUsers";
 import { USER_ROLES, type ManagedUser, type UserRole } from "../services/localAuth";
 import { validateRegister, type FieldErrors } from "../utils/validation";
 
 export function UsersAdmin() {
-  const { createUser, listUsers, updateUserRole, deleteUser, profile } = useAuth();
+  const { createUser, listUsers, updateUserRole, deleteUser, profile, cloudSynced } = useAuth();
   const { t, te } = useLanguage();
   const { notify } = useToast();
   const [fullName, setFullName] = useState("");
@@ -18,14 +20,28 @@ export function UsersAdmin() {
   const [role, setRole] = useState<UserRole>("user");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
-  const [users, setUsers] = useState<ManagedUser[]>(() => listUsers());
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
   const [deleting, setDeleting] = useState<ManagedUser | null>(null);
+  const cloudEnabled = canUseCloudUsers();
 
   const currentId = profile?.id;
 
-  function refresh() {
-    setUsers(listUsers());
+  async function refresh() {
+    setLoadingUsers(true);
+    try {
+      setUsers(await listUsers());
+    } catch (error) {
+      notify(error instanceof Error ? localizeError(error.message, t) : t("toast.generic"), "error");
+    } finally {
+      setLoadingUsers(false);
+    }
   }
+
+  useEffect(() => {
+    void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleCreate(event: FormEvent) {
     event.preventDefault();
@@ -40,7 +56,7 @@ export function UsersAdmin() {
       setUsername("");
       setPassword("");
       setRole("user");
-      refresh();
+      await refresh();
       notify(t("toast.userCreated"));
     } catch (error) {
       notify(error instanceof Error ? localizeError(error.message, t) : t("toast.registerFail"), "error");
@@ -53,7 +69,7 @@ export function UsersAdmin() {
     if (nextRole !== "admin" && nextRole !== "user") return;
     try {
       await updateUserRole(userId, nextRole);
-      refresh();
+      await refresh();
       notify(t("toast.roleUpdated"));
     } catch (error) {
       notify(error instanceof Error ? localizeError(error.message, t) : t("toast.generic"), "error");
@@ -65,7 +81,7 @@ export function UsersAdmin() {
     try {
       await deleteUser(deleting.id);
       setDeleting(null);
-      refresh();
+      await refresh();
       notify(t("toast.userDeleted"));
     } catch (error) {
       notify(error instanceof Error ? localizeError(error.message, t) : t("toast.generic"), "error");
@@ -79,7 +95,7 @@ export function UsersAdmin() {
       <div className="panel-head">
         <div>
           <h2>{t("settings.users")}</h2>
-          <p>{t("settings.usersBody")}</p>
+          <p>{cloudSynced ? t("settings.usersCloud") : cloudEnabled ? t("settings.needRelogin") : t("settings.usersLocal")}</p>
         </div>
       </div>
 
@@ -110,11 +126,12 @@ export function UsersAdmin() {
             <option key={item} value={item}>{t(item === "admin" ? "settings.roleAdmin" : "settings.roleUser")}</option>
           ))}
         </SelectField>
-        <button className="primary-btn wide" type="submit" disabled={submitting}>
+        <button className="primary-btn wide" type="submit" disabled={submitting || (cloudEnabled && !cloudSynced)}>
           {submitting ? t("auth.creating") : t("auth.createUser")}
         </button>
       </form>
 
+      {loadingUsers ? <LoadingState message={t("settings.loadingUsers")} /> : (
       <div className="table users-table">
         <div className="table-row table-header">
           <span>{t("auth.fullName")}</span>
@@ -148,6 +165,7 @@ export function UsersAdmin() {
           </div>
         ))}
       </div>
+      )}
 
       {deleting ? (
         <ConfirmDialog

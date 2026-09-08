@@ -541,6 +541,12 @@ body { margin: 0; min-width: 320px; background: var(--bg); color: var(--text); }
 .pagination { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 16px; color: var(--muted); font-size: 12px; }
 .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .settings-grid .wide-panel { grid-column: 1 / -1; }
+.settings-grid .setup-banner {
+  grid-column: 1 / -1;
+  position: static;
+  border-radius: 12px;
+  border: 1px solid #fed7aa;
+}
 .users-form { margin-top: 16px; }
 .users-form .primary-btn.wide { justify-self: start; height: 40px; }
 .users-table { margin-top: 18px; }

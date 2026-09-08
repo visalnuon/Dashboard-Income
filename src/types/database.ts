@@ -174,7 +174,50 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      login_app_user: {
+        Args: { p_username: string; p_password: string };
+        Returns: Record<string, unknown>;
+      };
+      register_app_user: {
+        Args: {
+          p_full_name: string;
+          p_username: string;
+          p_password: string;
+          p_role?: string;
+          p_admin_token?: string | null;
+        };
+        Returns: Record<string, unknown>;
+      };
+      admin_list_app_users: {
+        Args: { p_token: string };
+        Returns: Record<string, unknown>[];
+      };
+      admin_update_app_user_role: {
+        Args: { p_token: string; p_user_id: string; p_role: string };
+        Returns: Record<string, unknown>;
+      };
+      admin_delete_app_user: {
+        Args: { p_token: string; p_user_id: string };
+        Returns: Record<string, unknown>;
+      };
+      load_app_finance: {
+        Args: { p_token: string };
+        Returns: Record<string, unknown>;
+      };
+      save_app_finance: {
+        Args: { p_token: string; p_payload: Record<string, unknown> };
+        Returns: Record<string, unknown>;
+      };
+      update_app_user_name: {
+        Args: { p_token: string; p_full_name: string };
+        Returns: Record<string, unknown>;
+      };
+      update_app_user_password: {
+        Args: { p_token: string; p_password: string };
+        Returns: Record<string, unknown>;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
