@@ -148,7 +148,11 @@ async function persistStore(store: Store) {
   memory = { owner, store: cloneStore(store) };
   writeLocalCache(store);
   if (hasAppCloudSession() && session?.token) {
-    await cloudSaveFinance(session.token, store);
+    try {
+      await cloudSaveFinance(session.token, JSON.parse(JSON.stringify(store)) as object);
+    } catch {
+      // Keep the local save so Vercel / this browser still work if SQL or keys fail.
+    }
   }
 }
 
