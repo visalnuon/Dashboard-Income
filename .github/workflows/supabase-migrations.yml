@@ -32,7 +32,7 @@ jobs:
           version: 2.117.0
 
       - name: Show migration status
-        run: supabase migration list --db-url "$SUPABASE_DB_URL"
+        run: supabase migration list --db-url "$SUPABASE_DB_URL" --password "$SUPABASE_DB_PASSWORD"
 
       - name: Push pending migrations
-        run: supabase db push --db-url "$SUPABASE_DB_URL" --yes --skip-vault
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --password "$SUPABASE_DB_PASSWORD" --yes --skip-vault
