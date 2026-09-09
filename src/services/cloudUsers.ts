@@ -57,6 +57,9 @@ export function throwCloudRpc(error: { message?: string } | null): never {
   if (message.includes("at least 6")) throw new Error("Password must be at least 6 characters.");
   if (message.includes("signed in")) throw new Error("You need to be signed in.");
   if (message.includes("Unable to save")) throw new Error("Unable to save your data.");
+  if (message.includes("gen_salt") || message.includes("crypt(") || message.includes("pgcrypto")) {
+    throw new Error("Unable to create your account.");
+  }
   throw new Error(message);
 }
 
