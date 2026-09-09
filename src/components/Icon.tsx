@@ -34,7 +34,9 @@ export type IconName =
   | "target"
   | "transfer"
   | "more"
-  | "file";
+  | "file"
+  | "bell"
+  | "user";
 
 const PATHS: Record<IconName, string> = {
   wave: "M7 11c1.5-2 3-3 5-3s3.2 1.2 4.2 2.4M4 14c2-3 4.2-4.5 7-4.5 2.2 0 3.8 1 5.2 2.6M9 17c.8-1.4 1.8-2 3-2s2 .7 2.8 1.8",
@@ -73,6 +75,8 @@ const PATHS: Record<IconName, string> = {
   transfer: "M7 8h10M14 5l3 3-3 3M17 16H7M10 19l-3-3 3-3",
   more: "M12 6.5h.01M12 12h.01M12 17.5h.01",
   file: "M8 4h7l5 5v11H8zM15 4v5h5",
+  bell: "M12 4.8a5 5 0 0 1 5 5v2.4l1.4 2.6H5.6L7 12.2V9.8a5 5 0 0 1 5-5ZM10 18.2a2 2 0 0 0 4 0",
+  user: "M12 12.8a3.4 3.4 0 1 0 0-6.8 3.4 3.4 0 0 0 0 6.8ZM6.2 19a5.8 5.8 0 0 1 11.6 0",
 };
 
 export function TxKindIcon({ type, symbol }: { type: "income" | "expense"; symbol?: string | null }) {
