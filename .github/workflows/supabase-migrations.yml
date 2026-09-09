@@ -20,7 +20,6 @@ jobs:
     timeout-minutes: 15
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -32,7 +31,7 @@ jobs:
           version: 2.117.0
 
       - name: Show migration status
-        run: supabase migration list --db-url "$SUPABASE_DB_URL" --password "$SUPABASE_DB_PASSWORD"
+        run: supabase migration list --db-url "$SUPABASE_DB_URL"
 
       - name: Push pending migrations
-        run: supabase db push --db-url "$SUPABASE_DB_URL" --password "$SUPABASE_DB_PASSWORD" --yes --skip-vault
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --yes --skip-vault
