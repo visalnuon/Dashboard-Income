@@ -113,7 +113,6 @@ export function LoginPage() {
                 {t("auth.remember")}
               </label>
               {formError ? <p className="login-form-error">{formError}</p> : null}
-              <p className="login-demo-hint">{t("auth.demoHint")}</p>
               <button className="primary-btn full login-submit" type="submit" disabled={submitting}>
                 {submitting ? t("auth.signingIn") : t("auth.signIn")}
               </button>
