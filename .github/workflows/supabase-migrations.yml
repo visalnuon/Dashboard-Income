@@ -1,6 +1,8 @@
 # Applies pending Supabase migrations only when migration files change.
 # Frontend-only pushes do not run this job.
 # Does not reset the database. Does not print secret values.
+# Does not run `supabase link` — that command fetches project API keys
+# (including service_role) and needs api_gateway_keys_read.
 
 name: Deploy Supabase migrations
 
@@ -29,13 +31,10 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
-
-      - name: Link existing project
-        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+          version: 2.117.0
 
       - name: Show migration status
-        run: supabase migration list
+        run: supabase migration list --project-ref "$SUPABASE_PROJECT_ID"
 
       - name: Push pending migrations
-        run: supabase db push --yes
+        run: supabase db push --yes --project-ref "$SUPABASE_PROJECT_ID" --skip-vault
