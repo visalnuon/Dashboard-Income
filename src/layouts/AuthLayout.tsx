@@ -3,6 +3,7 @@ import { LanguageToggle } from "../components/LanguageToggle";
 import { LoadingState } from "../components/Status";
 import { useAuth } from "../hooks/useAuth";
 import { useLanguage } from "../hooks/useLanguage";
+import { preferredHomePath } from "../hooks/useMediaQuery";
 import { readPostAuthPath } from "../services/localAuth";
 
 export function AuthLayout() {
@@ -16,7 +17,7 @@ export function AuthLayout() {
       </div>
     );
   }
-  if (isAuthed) return <Navigate to={readPostAuthPath()} replace />;
+  if (isAuthed) return <Navigate to={readPostAuthPath(preferredHomePath())} replace />;
   return (
     <div className="auth-frame">
       <div className="auth-lang"><LanguageToggle /></div>

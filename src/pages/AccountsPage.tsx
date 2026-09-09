@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AccountForm } from "../components/forms/AccountForm";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { Icon, type IconName } from "../components/Icon";
 import { Modal } from "../components/Modal";
 import { EmptyState, ErrorState, LoadingState } from "../components/Status";
 import { useAccounts } from "../hooks/useAccounts";
@@ -25,6 +26,12 @@ export function AccountsPage() {
     bank: t("acc.bank"),
     card: t("acc.card"),
     wallet: t("acc.wallet"),
+  };
+  const typeIcons: Record<AccountType, IconName> = {
+    cash: "wallet",
+    bank: "accounts",
+    card: "card",
+    wallet: "wallet",
   };
 
   return (
@@ -59,7 +66,7 @@ export function AccountsPage() {
         <div className="card-grid">
           {data.map((account) => (
             <article className="entity-card" key={account.id}>
-              <div className="entity-icon">{account.type === "cash" ? "◎" : account.type === "bank" ? "▣" : account.type === "card" ? "▤" : "◈"}</div>
+              <div className="entity-icon"><Icon name={typeIcons[account.type]} /></div>
               <div>
                 <strong>{localizeName(account.name, t)}</strong>
                 <span className="type-pill">{typeLabels[account.type]}</span>

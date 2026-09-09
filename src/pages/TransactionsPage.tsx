@@ -1,10 +1,14 @@
 import { useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
+import { ActivityList } from "../components/ActivityList";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
 import { MonthFilter, type MonthValue } from "../components/MonthFilter";
 import { Pagination } from "../components/Pagination";
 import { SelectField, TextField } from "../components/Field";
+import { ErrorState, LoadingState } from "../components/Status";
+import { Icon } from "../components/Icon";
+import { TransactionDetail } from "../components/TransactionDetail";
 import { TransactionForm } from "../components/forms/TransactionForm";
 import { TransactionTable } from "../components/TransactionTable";
 import { useAccounts } from "../hooks/useAccounts";
@@ -32,6 +36,7 @@ export function TransactionsPage({ type }: { type: TransactionType }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<TransactionWithRelations | null>(null);
   const [deleting, setDeleting] = useState<TransactionWithRelations | null>(null);
+  const [viewing, setViewing] = useState<TransactionWithRelations | null>(null);
 
   const monthRange = selectedMonth ? monthBounds(selectedMonth.month, selectedMonth.year) : null;
   const filters = {
@@ -147,6 +152,7 @@ export function TransactionsPage({ type }: { type: TransactionType }) {
             <p>{t("tx.tableBody", { noun })}</p>
           </div>
           <button className="primary-btn" onClick={() => { setEditing(null); setShowForm(true); }}>
+            <Icon name="plus" />
             {isIncome ? t("tx.addIncome") : t("tx.addExpense")}
           </button>
         </div>
@@ -186,21 +192,62 @@ export function TransactionsPage({ type }: { type: TransactionType }) {
           />
         </div>
 
-        <TransactionTable
-          rows={data}
-          loading={loading}
-          error={error}
-          onRetry={reload}
-          emptyTitle={t("tx.emptyTitle", { noun })}
-          emptyMessage={t("tx.emptyBody", { noun })}
-          onEdit={(row) => {
-            setEditing(row);
-            setShowForm(true);
-          }}
-          onDelete={setDeleting}
-        />
+        <div className="tx-desktop">
+          <TransactionTable
+            rows={data}
+            loading={loading}
+            error={error}
+            onRetry={reload}
+            emptyTitle={t("tx.emptyTitle", { noun })}
+            emptyMessage={t("tx.emptyBody", { noun })}
+            emptyAction={{ label: isIncome ? t("tx.addIncome") : t("tx.addExpense"), onClick: () => { setEditing(null); setShowForm(true); } }}
+            onEdit={(row) => {
+              setEditing(row);
+              setShowForm(true);
+            }}
+            onDelete={setDeleting}
+            onOpen={setViewing}
+          />
+        </div>
+        <div className="tx-mobile">
+          {loading ? <LoadingState message={t("tx.loading")} /> : null}
+          {error ? (
+            <ErrorState title={t("tx.loadError")} message={error} action={{ label: t("common.tryAgain"), onClick: reload }} />
+          ) : null}
+          {!loading && !error ? (
+            <ActivityList
+              rows={data}
+              emptyTitle={t("tx.emptyTitle", { noun })}
+              emptyMessage={t("tx.emptyBody", { noun })}
+              emptyAction={{ label: isIncome ? t("tx.addIncome") : t("tx.addExpense"), onClick: () => { setEditing(null); setShowForm(true); } }}
+              onEdit={(row) => {
+                setEditing(row);
+                setShowForm(true);
+              }}
+              onDelete={setDeleting}
+              onOpen={setViewing}
+            />
+          ) : null}
+        </div>
         <Pagination page={page} pageSize={PAGE_SIZE} total={count} onPage={setPage} />
       </section>
+
+      {viewing ? (
+        <Modal title={t("tx.detail")} onClose={() => setViewing(null)}>
+          <TransactionDetail
+            row={viewing}
+            onEdit={() => {
+              setEditing(viewing);
+              setViewing(null);
+              setShowForm(true);
+            }}
+            onDelete={() => {
+              setDeleting(viewing);
+              setViewing(null);
+            }}
+          />
+        </Modal>
+      ) : null}
 
       {showForm ? (
         <Modal

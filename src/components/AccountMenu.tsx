@@ -55,6 +55,7 @@ export function AccountMenu() {
           <p className="account-logged">{t("nav.loggedInAs")}</p>
           <strong className="account-name">{name}</strong>
           <NavLink to="/settings" className="account-settings" role="menuitem" onClick={() => setOpen(false)}>
+            <Icon name="settings" />
             {t("nav.settings")}
           </NavLink>
           <button type="button" className="account-logout" role="menuitem" onClick={() => void handleLogout()}>

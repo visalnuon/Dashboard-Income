@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { CategoryForm } from "../components/forms/CategoryForm";
+import { Icon } from "../components/Icon";
 import { Modal } from "../components/Modal";
 import { EmptyState, ErrorState, LoadingState } from "../components/Status";
 import { useCategories } from "../hooks/useCategories";
@@ -56,7 +57,10 @@ export function CategoriesPage() {
         <div className="card-grid">
           {rows.map((category) => (
             <article className="entity-card" key={category.id}>
-              <div className="entity-icon">{category.icon}</div>
+              <div className="entity-icon">
+                {category.icon || null}
+                {!category.icon ? <Icon name={category.type === "income" ? "income" : "expense"} /> : null}
+              </div>
               <div>
                 <strong>{localizeName(category.name, t)}</strong>
                 <span className={`type-pill ${category.type}`}>{category.type === "income" ? t("common.income") : t("common.expense")}</span>

@@ -60,11 +60,16 @@ export function LineChart({ data }: { data: MonthlyPoint[] }) {
     return () => node.removeEventListener("wheel", onWheel);
   }, [data.length]);
 
-  if (data.length === 0) {
-    return <div className="chart-empty">{t("chart.noActivity")}</div>;
+  const rawMax = Math.max(0, ...data.flatMap((item) => [item.income, item.expense]));
+  if (data.length === 0 || rawMax <= 0) {
+    return (
+      <div className="chart-empty">
+        <strong>{t("empty.chartTitle")}</strong>
+        <p>{t("empty.chartBody")}</p>
+      </div>
+    );
   }
 
-  const rawMax = Math.max(0, ...data.flatMap((item) => [item.income, item.expense]));
   const max = niceMax(rawMax);
   const height = 300;
   const top = 16;

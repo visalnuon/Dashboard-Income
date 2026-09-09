@@ -95,6 +95,72 @@ export type BudgetInsert = {
   year: number;
 };
 
+export type SavingsGoal = {
+  id: string;
+  user_id: string;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  target_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SavingsGoalInsert = {
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  target_date: string | null;
+};
+
+export type SavingsGoalUpdate = Partial<SavingsGoalInsert>;
+
+export type AccountTransfer = {
+  id: string;
+  user_id: string;
+  from_account_id: string;
+  to_account_id: string;
+  amount: number;
+  transfer_date: string;
+  note: string | null;
+  created_at: string;
+};
+
+export type AccountTransferInsert = {
+  from_account_id: string;
+  to_account_id: string;
+  amount: number;
+  transfer_date: string;
+  note: string | null;
+};
+
+export type RecurringFrequency = "daily" | "weekly" | "monthly";
+
+export type RecurringRule = {
+  id: string;
+  user_id: string;
+  type: TransactionType;
+  title: string;
+  amount: number;
+  category_id: string;
+  account_id: string;
+  frequency: RecurringFrequency;
+  next_date: string;
+  note: string | null;
+  created_at: string;
+};
+
+export type RecurringRuleInsert = {
+  type: TransactionType;
+  title: string;
+  amount: number;
+  category_id: string;
+  account_id: string;
+  frequency: RecurringFrequency;
+  next_date: string;
+  note: string | null;
+};
+
 export type DatePreset =
   | "this_month"
   | "last_month"

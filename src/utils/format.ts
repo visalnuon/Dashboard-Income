@@ -32,6 +32,18 @@ export function formatDate(value: string, locale = "en-US") {
   }).format(date);
 }
 
+export function formatDateTime(value: string, locale = "en-US") {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(locale, {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export function initials(name?: string | null, email?: string | null) {
   const source = name?.trim() || email?.trim() || "U";
   const parts = source.split(/\s+/).filter(Boolean);

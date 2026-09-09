@@ -20,11 +20,22 @@ const SELECT = "*, category:categories(id, name, icon, type), account:accounts(i
 
 function matchesSearch(row: TransactionWithRelations, search?: string) {
   if (!search?.trim()) return true;
-  const term = search.toLowerCase().trim();
-  return [row.title, row.description ?? "", row.category?.name ?? "", row.account?.name ?? ""]
+  const term = search.toLowerCase().trim().replace(/[$,]/g, "");
+  const amount = toNumber(row.amount);
+  const haystack = [
+    row.title,
+    row.description ?? "",
+    row.category?.name ?? "",
+    row.account?.name ?? "",
+    row.transaction_date,
+    String(amount),
+    amount.toFixed(2),
+    amount.toFixed(0),
+  ]
     .join(" ")
     .toLowerCase()
-    .includes(term);
+    .replace(/,/g, "");
+  return haystack.includes(term);
 }
 
 function normalizeTransaction(row: TransactionWithRelations): TransactionWithRelations {

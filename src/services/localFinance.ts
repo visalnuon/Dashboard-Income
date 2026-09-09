@@ -6,6 +6,14 @@ import type {
   BudgetWithCategory,
   Category,
   CategoryInsert,
+  AccountTransfer,
+  AccountTransferInsert,
+  RecurringFrequency,
+  RecurringRule,
+  RecurringRuleInsert,
+  SavingsGoal,
+  SavingsGoalInsert,
+  SavingsGoalUpdate,
   Transaction,
   TransactionFilters,
   TransactionInsert,
@@ -14,6 +22,7 @@ import type {
   TransactionWithRelations,
 } from "../types/database";
 import { hasAppCloudSession } from "../lib/dataMode";
+import { addDaysIso, addMonthsIso, toISODate } from "../utils/dates";
 import { toNumber } from "../utils/format";
 import { cloudLoadFinance, cloudSaveFinance } from "./cloudFinance";
 import { DEMO_USER_ID, getLocalAuthUserId, readLocalSession } from "./localAuth";
@@ -35,6 +44,9 @@ type Store = {
   accounts: Account[];
   transactions: Transaction[];
   budgets: Budget[];
+  goals: SavingsGoal[];
+  transfers: AccountTransfer[];
+  recurring: RecurringRule[];
 };
 
 function nowIso() {
@@ -63,7 +75,7 @@ function seed(): Store {
     { id: createId(), user_id, name: "Cash", type: "cash", balance: 0, created_at, updated_at: created_at },
     { id: createId(), user_id, name: "Bank", type: "bank", balance: 0, created_at, updated_at: created_at },
   ];
-  return { categories, accounts, transactions: [], budgets: [] };
+  return { categories, accounts, transactions: [], budgets: [], goals: [], transfers: [], recurring: [] };
 }
 
 function cloneStore(store: Store): Store {
@@ -78,7 +90,70 @@ function asStore(value: unknown): Store | null {
     accounts: parsed.accounts ?? [],
     transactions: parsed.transactions ?? [],
     budgets: parsed.budgets ?? [],
+    goals: Array.isArray(parsed.goals) ? parsed.goals.map(normalizeGoal) : [],
+    transfers: Array.isArray(parsed.transfers) ? parsed.transfers.map(normalizeTransfer) : [],
+    recurring: Array.isArray(parsed.recurring) ? parsed.recurring.map(normalizeRecurring) : [],
   };
+}
+
+function normalizeGoal(row: SavingsGoal): SavingsGoal {
+  return {
+    ...row,
+    target_amount: toNumber(row.target_amount),
+    current_amount: toNumber(row.current_amount),
+    target_date: row.target_date || null,
+  };
+}
+
+function normalizeTransfer(row: AccountTransfer): AccountTransfer {
+  return {
+    ...row,
+    amount: toNumber(row.amount),
+    note: row.note || null,
+  };
+}
+
+function normalizeRecurring(row: RecurringRule): RecurringRule {
+  return {
+    ...row,
+    amount: toNumber(row.amount),
+    note: row.note || null,
+  };
+}
+
+function nextRecurringDate(date: string, frequency: RecurringFrequency) {
+  if (frequency === "daily") return addDaysIso(date, 1);
+  if (frequency === "weekly") return addDaysIso(date, 7);
+  return addMonthsIso(date, 1);
+}
+
+function applyDueRecurring(store: Store) {
+  const today = toISODate(new Date());
+  let changed = false;
+  for (const rule of store.recurring) {
+    let guard = 0;
+    while (rule.next_date <= today && guard < 36) {
+      const created_at = nowIso();
+      store.transactions.push({
+        id: createId(),
+        user_id: currentUserId(),
+        account_id: rule.account_id,
+        category_id: rule.category_id,
+        type: rule.type,
+        title: rule.title,
+        amount: toNumber(rule.amount),
+        description: rule.note,
+        transaction_date: rule.next_date,
+        created_at,
+        updated_at: created_at,
+      });
+      rule.next_date = nextRecurringDate(rule.next_date, rule.frequency);
+      changed = true;
+      guard += 1;
+    }
+  }
+  if (changed) recomputeBalances(store);
+  return changed;
 }
 
 function isPopulated(store: Store | null): store is Store {
@@ -119,27 +194,29 @@ function enqueue<T>(job: () => Promise<T>) {
 async function loadStore(): Promise<Store> {
   const session = readLocalSession();
   const owner = session?.userId ?? "local-user";
-  if (memory?.owner === owner) return cloneStore(memory.store);
-
-  if (hasAppCloudSession() && session?.token) {
-    try {
-      const remote = asStore(await cloudLoadFinance(session.token));
-      const next = isPopulated(remote) ? remote : (readLocalCache() ?? seed());
-      memory = { owner, store: cloneStore(next) };
-      writeLocalCache(next);
-      if (!isPopulated(remote)) await cloudSaveFinance(session.token, next);
-      return cloneStore(next);
-    } catch {
-      const fallback = readLocalCache() ?? seed();
-      memory = { owner, store: cloneStore(fallback) };
-      return cloneStore(fallback);
+  if (memory?.owner !== owner) {
+    if (hasAppCloudSession() && session?.token) {
+      try {
+        const remote = asStore(await cloudLoadFinance(session.token));
+        const next = isPopulated(remote) ? remote : (readLocalCache() ?? seed());
+        memory = { owner, store: cloneStore(next) };
+        writeLocalCache(next);
+        if (!isPopulated(remote)) await cloudSaveFinance(session.token, next);
+      } catch {
+        const fallback = readLocalCache() ?? seed();
+        memory = { owner, store: cloneStore(fallback) };
+      }
+    } else {
+      const local = readLocalCache() ?? seed();
+      memory = { owner, store: cloneStore(local) };
+      writeLocalCache(local);
     }
   }
 
-  const local = readLocalCache() ?? seed();
-  memory = { owner, store: cloneStore(local) };
-  writeLocalCache(local);
-  return cloneStore(local);
+  if (memory && applyDueRecurring(memory.store)) {
+    await persistStore(memory.store);
+  }
+  return cloneStore(memory!.store);
 }
 
 async function persistStore(store: Store) {
@@ -195,20 +272,38 @@ function withRelations(row: Transaction, store: Store): TransactionWithRelations
 
 function recomputeBalances(store: Store) {
   for (const account of store.accounts) {
-    account.balance = store.transactions
+    const fromTx = store.transactions
       .filter((row) => row.account_id === account.id)
       .reduce((sum, row) => sum + (row.type === "income" ? toNumber(row.amount) : -toNumber(row.amount)), 0);
+    const fromTransfers = store.transfers.reduce((sum, row) => {
+      if (row.to_account_id === account.id) return sum + toNumber(row.amount);
+      if (row.from_account_id === account.id) return sum - toNumber(row.amount);
+      return sum;
+    }, 0);
+    account.balance = fromTx + fromTransfers;
     account.updated_at = nowIso();
   }
 }
 
 function matchesSearch(row: TransactionWithRelations, search?: string) {
   if (!search?.trim()) return true;
-  const term = search.toLowerCase().trim();
-  return [row.title, row.description ?? "", row.category?.name ?? "", row.account?.name ?? ""]
+  const term = search.toLowerCase().trim().replace(/[$,]/g, "");
+  const amount = toNumber(row.amount);
+  const haystack = [
+    row.title,
+    row.description ?? "",
+    row.category?.name ?? "",
+    row.account?.name ?? "",
+    row.transaction_date,
+    row.created_at.slice(0, 10),
+    String(amount),
+    amount.toFixed(2),
+    amount.toFixed(0),
+  ]
     .join(" ")
     .toLowerCase()
-    .includes(term);
+    .replace(/,/g, "");
+  return haystack.includes(term);
 }
 
 function filterTransactions(store: Store, filters: Omit<TransactionFilters, "page" | "pageSize">) {
@@ -263,7 +358,11 @@ export function localUpdateCategory(id: string, values: Partial<CategoryInsert>)
 
 export function localDeleteCategory(id: string) {
   return mutate((store) => {
-    if (store.transactions.some((row) => row.category_id === id) || store.budgets.some((row) => row.category_id === id)) {
+    if (
+      store.transactions.some((row) => row.category_id === id) ||
+      store.budgets.some((row) => row.category_id === id) ||
+      store.recurring.some((row) => row.category_id === id)
+    ) {
       throw new Error("This record is still in use and cannot be deleted.");
     }
     store.categories = store.categories.filter((item) => item.id !== id);
@@ -340,6 +439,12 @@ export function localUpdateAccount(id: string, values: { name: string; type: Acc
 export function localDeleteAccount(id: string) {
   return mutate((store) => {
     if (store.transactions.some((row) => row.account_id === id)) {
+      throw new Error("This record is still in use and cannot be deleted.");
+    }
+    if (store.transfers.some((row) => row.from_account_id === id || row.to_account_id === id)) {
+      throw new Error("This record is still in use and cannot be deleted.");
+    }
+    if (store.recurring.some((row) => row.account_id === id)) {
       throw new Error("This record is still in use and cannot be deleted.");
     }
     store.accounts = store.accounts.filter((item) => item.id !== id);
@@ -457,5 +562,116 @@ export function localUpdateBudget(id: string, values: Partial<BudgetInsert>) {
 export function localDeleteBudget(id: string) {
   return mutate((store) => {
     store.budgets = store.budgets.filter((item) => item.id !== id);
+  });
+}
+
+export function localListGoals() {
+  return read((store) =>
+    [...store.goals]
+      .map(normalizeGoal)
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1)),
+  );
+}
+
+export function localCreateGoal(values: SavingsGoalInsert) {
+  return mutate((store) => {
+    const created_at = nowIso();
+    const row: SavingsGoal = {
+      id: createId(),
+      user_id: currentUserId(),
+      name: values.name.trim(),
+      target_amount: toNumber(values.target_amount),
+      current_amount: toNumber(values.current_amount),
+      target_date: values.target_date || null,
+      created_at,
+      updated_at: created_at,
+    };
+    store.goals.push(row);
+    return normalizeGoal(row);
+  });
+}
+
+export function localUpdateGoal(id: string, values: SavingsGoalUpdate) {
+  return mutate((store) => {
+    const row = store.goals.find((item) => item.id === id);
+    if (!row) throw new Error("Goal not found.");
+    if (values.name != null) row.name = values.name.trim();
+    if (values.target_amount != null) row.target_amount = toNumber(values.target_amount);
+    if (values.current_amount != null) row.current_amount = toNumber(values.current_amount);
+    if (values.target_date !== undefined) row.target_date = values.target_date || null;
+    row.updated_at = nowIso();
+    return normalizeGoal(row);
+  });
+}
+
+export function localDeleteGoal(id: string) {
+  return mutate((store) => {
+    store.goals = store.goals.filter((item) => item.id !== id);
+  });
+}
+
+export function localListTransfers() {
+  return read((store) =>
+    [...store.transfers]
+      .map(normalizeTransfer)
+      .sort((a, b) => (a.transfer_date < b.transfer_date ? 1 : -1)),
+  );
+}
+
+export function localCreateTransfer(values: AccountTransferInsert) {
+  return mutate((store) => {
+    if (values.from_account_id === values.to_account_id) {
+      throw new Error("Choose two different accounts.");
+    }
+    const row: AccountTransfer = {
+      id: createId(),
+      user_id: currentUserId(),
+      from_account_id: values.from_account_id,
+      to_account_id: values.to_account_id,
+      amount: toNumber(values.amount),
+      transfer_date: values.transfer_date,
+      note: values.note,
+      created_at: nowIso(),
+    };
+    store.transfers.push(row);
+    recomputeBalances(store);
+    return normalizeTransfer(row);
+  });
+}
+
+export function localDeleteTransfer(id: string) {
+  return mutate((store) => {
+    store.transfers = store.transfers.filter((item) => item.id !== id);
+    recomputeBalances(store);
+  });
+}
+
+export function localListRecurring() {
+  return read((store) => [...store.recurring].map(normalizeRecurring).sort((a, b) => a.title.localeCompare(b.title)));
+}
+
+export function localCreateRecurring(values: RecurringRuleInsert) {
+  return mutate((store) => {
+    const row: RecurringRule = {
+      id: createId(),
+      user_id: currentUserId(),
+      type: values.type,
+      title: values.title.trim(),
+      amount: toNumber(values.amount),
+      category_id: values.category_id,
+      account_id: values.account_id,
+      frequency: values.frequency,
+      next_date: values.next_date,
+      note: values.note,
+      created_at: nowIso(),
+    };
+    store.recurring.push(row);
+    return normalizeRecurring(row);
+  });
+}
+
+export function localDeleteRecurring(id: string) {
+  return mutate((store) => {
+    store.recurring = store.recurring.filter((item) => item.id !== id);
   });
 }

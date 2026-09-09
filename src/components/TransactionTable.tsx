@@ -2,6 +2,7 @@ import { localizeName } from "../i18n/localize";
 import type { TransactionWithRelations } from "../types/database";
 import { formatDate, formatMoney } from "../utils/format";
 import { useLanguage } from "../hooks/useLanguage";
+import { TxKindIcon } from "./Icon";
 import { EmptyState, ErrorState, LoadingState } from "./Status";
 
 type TransactionTableProps = {
@@ -13,7 +14,9 @@ type TransactionTableProps = {
   onDelete?: (row: TransactionWithRelations) => void;
   emptyTitle?: string;
   emptyMessage?: string;
+  emptyAction?: { label: string; onClick: () => void };
   showAccount?: boolean;
+  onOpen?: (row: TransactionWithRelations) => void;
 };
 
 export function TransactionTable({
@@ -25,7 +28,9 @@ export function TransactionTable({
   onDelete,
   emptyTitle,
   emptyMessage,
+  emptyAction,
   showAccount = true,
+  onOpen,
 }: TransactionTableProps) {
   const { t, locale } = useLanguage();
   if (loading) return <LoadingState message={t("tx.loading")} />;
@@ -33,7 +38,14 @@ export function TransactionTable({
     return <ErrorState title={t("tx.loadError")} message={error} action={onRetry ? { label: t("common.tryAgain"), onClick: onRetry } : undefined} />;
   }
   if (rows.length === 0) {
-    return <EmptyState title={emptyTitle ?? t("dashboard.emptyTitle")} message={emptyMessage ?? t("dashboard.emptyBody")} icon="▤" />;
+    return (
+      <EmptyState
+        title={emptyTitle ?? t("dashboard.emptyTitle")}
+        message={emptyMessage ?? t("dashboard.emptyBody")}
+        icon="wallet"
+        action={emptyAction}
+      />
+    );
   }
 
   return (
@@ -47,9 +59,16 @@ export function TransactionTable({
         {onEdit || onDelete ? <span /> : null}
       </div>
       {rows.map((row) => (
-        <div className="table-row" key={row.id}>
+        <div
+          className={onOpen ? "table-row is-clickable" : "table-row"}
+          key={row.id}
+          onClick={onOpen ? () => onOpen(row) : undefined}
+          onKeyDown={onOpen ? (event) => { if (event.key === "Enter") onOpen(row); } : undefined}
+          role={onOpen ? "button" : undefined}
+          tabIndex={onOpen ? 0 : undefined}
+        >
           <div className="transaction-name">
-            <div className={`tx-icon ${row.type}`}>{row.category?.icon || (row.type === "income" ? "↗" : "↘")}</div>
+            <div className={`tx-icon ${row.type}`}><TxKindIcon type={row.type} symbol={row.category?.icon} /></div>
             <div>
               <strong>{localizeName(row.title, t)}</strong>
               {row.description ? <em className="row-desc">{row.description}</em> : null}
@@ -63,8 +82,8 @@ export function TransactionTable({
           </strong>
           {onEdit || onDelete ? (
             <div className="row-actions">
-              {onEdit ? <button className="ghost-btn" onClick={() => onEdit(row)}>{t("common.edit")}</button> : null}
-              {onDelete ? <button className="ghost-btn danger" onClick={() => onDelete(row)}>{t("common.delete")}</button> : null}
+              {onEdit ? <button className="ghost-btn" onClick={(event) => { event.stopPropagation(); onEdit(row); }}>{t("common.edit")}</button> : null}
+              {onDelete ? <button className="ghost-btn danger" onClick={(event) => { event.stopPropagation(); onDelete(row); }}>{t("common.delete")}</button> : null}
             </div>
           ) : null}
         </div>

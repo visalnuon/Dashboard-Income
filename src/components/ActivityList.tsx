@@ -3,6 +3,7 @@ import type { TransactionWithRelations } from "../types/database";
 import { formatDate, formatMoney } from "../utils/format";
 import { toISODate } from "../utils/dates";
 import { useLanguage } from "../hooks/useLanguage";
+import { TxKindIcon } from "./Icon";
 import { EmptyState } from "./Status";
 
 type ActivityListProps = {
@@ -11,6 +12,8 @@ type ActivityListProps = {
   onDelete?: (row: TransactionWithRelations) => void;
   emptyTitle?: string;
   emptyMessage?: string;
+  emptyAction?: { label: string; onClick: () => void };
+  onOpen?: (row: TransactionWithRelations) => void;
 };
 
 function dayLabel(date: string, locale: string, today: string, yesterday: string, t: (key: "dash.today" | "dash.yesterday") => string) {
@@ -19,7 +22,7 @@ function dayLabel(date: string, locale: string, today: string, yesterday: string
   return formatDate(date, locale);
 }
 
-export function ActivityList({ rows, onEdit, onDelete, emptyTitle, emptyMessage }: ActivityListProps) {
+export function ActivityList({ rows, onEdit, onDelete, emptyTitle, emptyMessage, emptyAction, onOpen }: ActivityListProps) {
   const { t, locale } = useLanguage();
   const today = toISODate(new Date());
   const yesterdayDate = new Date();
@@ -27,7 +30,14 @@ export function ActivityList({ rows, onEdit, onDelete, emptyTitle, emptyMessage 
   const yesterday = toISODate(yesterdayDate);
 
   if (rows.length === 0) {
-    return <EmptyState title={emptyTitle ?? t("dashboard.emptyTitle")} message={emptyMessage ?? t("dashboard.emptyBody")} icon="▤" />;
+    return (
+      <EmptyState
+        title={emptyTitle ?? t("dashboard.emptyTitle")}
+        message={emptyMessage ?? t("dashboard.emptyBody")}
+        icon="wallet"
+        action={emptyAction}
+      />
+    );
   }
 
   const groups: { date: string; items: TransactionWithRelations[] }[] = [];
@@ -54,11 +64,24 @@ export function ActivityList({ rows, onEdit, onDelete, emptyTitle, emptyMessage 
               </strong>
             </header>
             {group.items.map((row) => (
-              <article className="activity-row" key={row.id}>
-                <div className={`tx-icon ${row.type}`}>{row.category?.icon || (row.type === "income" ? "↗" : "↘")}</div>
+              <article
+                className={onOpen ? "activity-row is-clickable" : "activity-row"}
+                key={row.id}
+                onClick={onOpen ? () => onOpen(row) : undefined}
+                onKeyDown={onOpen ? (event) => { if (event.key === "Enter") onOpen(row); } : undefined}
+                role={onOpen ? "button" : undefined}
+                tabIndex={onOpen ? 0 : undefined}
+              >
+                <div className={`tx-icon ${row.type}`}><TxKindIcon type={row.type} symbol={row.category?.icon} /></div>
                 <div className="activity-copy">
                   <strong>{localizeName(row.title, t)}</strong>
-                  <span>{localizeName(row.category?.name, t) || t("common.uncategorized")} · {localizeName(row.account?.name, t) || "—"}</span>
+                  <span>
+                    {localizeName(row.category?.name, t) || t("common.uncategorized")}
+                    {" · "}
+                    {localizeName(row.account?.name, t) || "—"}
+                    {" · "}
+                    {formatDate(row.transaction_date, locale)}
+                  </span>
                 </div>
                 <div className="activity-meta">
                   <strong className={row.type === "income" ? "amount-income" : "amount-expense"}>
@@ -67,8 +90,8 @@ export function ActivityList({ rows, onEdit, onDelete, emptyTitle, emptyMessage 
                   </strong>
                   {onEdit || onDelete ? (
                     <div className="row-actions">
-                      {onEdit ? <button className="ghost-btn" onClick={() => onEdit(row)}>{t("common.edit")}</button> : null}
-                      {onDelete ? <button className="ghost-btn danger" onClick={() => onDelete(row)}>{t("common.delete")}</button> : null}
+                      {onEdit ? <button className="ghost-btn" onClick={(event) => { event.stopPropagation(); onEdit(row); }}>{t("common.edit")}</button> : null}
+                      {onDelete ? <button className="ghost-btn danger" onClick={(event) => { event.stopPropagation(); onDelete(row); }}>{t("common.delete")}</button> : null}
                     </div>
                   ) : null}
                 </div>

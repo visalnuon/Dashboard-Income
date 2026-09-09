@@ -1,7 +1,12 @@
 import { useLanguage } from "../hooks/useLanguage";
+import { useNavigate } from "react-router-dom";
+import { Icon } from "../components/Icon";
+import { preferredHomePath } from "../hooks/useMediaQuery";
 
 export function HelpPage() {
   const { t } = useLanguage();
+  const navigate = useNavigate();
+
   return (
     <section className="panel help-panel">
       <div className="panel-head">
@@ -9,6 +14,14 @@ export function HelpPage() {
           <h2>{t("help.title")}</h2>
           <p>{t("help.body")}</p>
         </div>
+        <button
+          type="button"
+          className="ghost-btn bordered"
+          onClick={() => navigate(preferredHomePath(), { state: { openWelcome: true } })}
+        >
+          <Icon name="help" />
+          {t("help.openWelcome")}
+        </button>
       </div>
       <div className="help-grid">
         <article>

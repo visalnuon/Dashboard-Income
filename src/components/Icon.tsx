@@ -26,7 +26,15 @@ export type IconName =
   | "help"
   | "search"
   | "settings"
-  | "logout";
+  | "logout"
+  | "home"
+  | "menu"
+  | "plus"
+  | "close"
+  | "target"
+  | "transfer"
+  | "more"
+  | "file";
 
 const PATHS: Record<IconName, string> = {
   wave: "M7 11c1.5-2 3-3 5-3s3.2 1.2 4.2 2.4M4 14c2-3 4.2-4.5 7-4.5 2.2 0 3.8 1 5.2 2.6M9 17c.8-1.4 1.8-2 3-2s2 .7 2.8 1.8",
@@ -57,7 +65,20 @@ const PATHS: Record<IconName, string> = {
   search: "M10.6 17.2a6.6 6.6 0 1 0 0-13.2 6.6 6.6 0 0 0 0 13.2ZM15.5 15.5 20 20",
   settings: "M12 15.2A3.2 3.2 0 1 0 12 8.8 3.2 3.2 0 0 0 12 15.2ZM4.8 12.8v-1.6l1.7-.5.7-1.6-1-1.5 1.1-1.1 1.5 1 .6-.7.5-1.7h1.6l.5 1.7.6.7 1.5-1 1.1 1.1-1 1.5.7 1.6 1.7.5v1.6l-1.7.5-.7 1.6 1 1.5-1.1 1.1-1.5-1-.6.7-.5 1.7h-1.6l-.5-1.7-.6-.7-1.5 1-1.1-1.1 1-1.5-.7-1.6Z",
   logout: "M10 4.5H6.2A1.7 1.7 0 0 0 4.5 6.2v11.6A1.7 1.7 0 0 0 6.2 19.5H10M14.5 16.5 19.5 12l-5-4.5M19.5 12H10",
+  home: "M4.5 11.2 12 4.8l7.5 6.4M6.8 10.4V19h10.4v-8.6",
+  menu: "M5 7h14M5 12h14M5 17h14",
+  plus: "M12 5v14M5 12h14",
+  close: "M6 6l12 12M18 6 6 18",
+  target: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 16.2a4.2 4.2 0 1 0 0-8.4 4.2 4.2 0 0 0 0 8.4ZM12 12h.01",
+  transfer: "M7 8h10M14 5l3 3-3 3M17 16H7M10 19l-3-3 3-3",
+  more: "M12 6.5h.01M12 12h.01M12 17.5h.01",
+  file: "M8 4h7l5 5v11H8zM15 4v5h5",
 };
+
+export function TxKindIcon({ type, symbol }: { type: "income" | "expense"; symbol?: string | null }) {
+  if (symbol) return <span className="tx-emoji" aria-hidden="true">{symbol}</span>;
+  return <Icon name={type === "income" ? "income" : "expense"} />;
+}
 
 export function Icon({ name, className }: { name: IconName; className?: string }) {
   return (

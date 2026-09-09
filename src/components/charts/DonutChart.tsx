@@ -15,7 +15,12 @@ export function DonutChart({ items, totalLabel }: { items: BreakdownItem[]; tota
   const { t } = useLanguage();
   const total = items.reduce((sum, item) => sum + item.value, 0);
   if (total <= 0) {
-    return <div className="chart-empty compact">{t("chart.noExpenses")}</div>;
+    return (
+      <div className="chart-empty compact">
+        <strong>{t("empty.chartTitle")}</strong>
+        <p>{t("empty.chartBody")}</p>
+      </div>
+    );
   }
 
   let offset = 0;

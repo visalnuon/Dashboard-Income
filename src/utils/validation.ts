@@ -74,6 +74,52 @@ export function validateBudget(values: {
   return errors;
 }
 
+export function validateGoal(values: { name: string; target: string; current: string }) {
+  const errors: FieldErrors = {};
+  if (!values.name.trim()) errors.name = "validation.goalName";
+  const target = Number(values.target);
+  if (!values.target || Number.isNaN(target) || target <= 0) {
+    errors.target = "validation.goalTarget";
+  }
+  if (values.current !== "") {
+    const current = Number(values.current);
+    if (Number.isNaN(current) || current < 0) errors.current = "validation.goalCurrent";
+  }
+  return errors;
+}
+
+export function validateTransfer(values: { fromId: string; toId: string; amount: string; date: string }) {
+  const errors: FieldErrors = {};
+  if (!values.fromId) errors.fromId = "validation.accountRequired";
+  if (!values.toId) errors.toId = "validation.accountRequired";
+  if (values.fromId && values.toId && values.fromId === values.toId) errors.toId = "validation.transferAccounts";
+  const amount = Number(values.amount);
+  if (!values.amount || Number.isNaN(amount) || amount <= 0) errors.amount = "validation.amountRequired";
+  if (!values.date) errors.date = "validation.dateRequired";
+  return errors;
+}
+
+export function validateRecurring(values: {
+  type: string;
+  title: string;
+  amount: string;
+  categoryId: string;
+  accountId: string;
+  frequency: string;
+  date: string;
+}) {
+  const errors: FieldErrors = {};
+  if (!isTransactionType(values.type)) errors.type = "validation.typeRequired";
+  if (!values.title.trim()) errors.title = "validation.titleRequired";
+  const amount = Number(values.amount);
+  if (!values.amount || Number.isNaN(amount) || amount <= 0) errors.amount = "validation.amountRequired";
+  if (!values.categoryId) errors.categoryId = "validation.categoryRequired";
+  if (!values.accountId) errors.accountId = "validation.accountRequired";
+  if (!["daily", "weekly", "monthly"].includes(values.frequency)) errors.frequency = "validation.frequencyRequired";
+  if (!values.date) errors.date = "validation.dateRequired";
+  return errors;
+}
+
 export function validateAuth(values: { email: string; password: string; fullName?: string }, mode: "login" | "register") {
   const errors: FieldErrors = {};
   if (mode === "register" && !values.fullName?.trim()) {

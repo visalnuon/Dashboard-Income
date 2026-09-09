@@ -13,11 +13,14 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [dark, setDark] = useState(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? stored === "dark" : false;
+    const next = stored ? stored === "dark" : false;
+    document.documentElement.classList.toggle("dark", next);
+    return next;
   });
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, dark ? "dark" : "light");
+    document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
 
   const value = useMemo(

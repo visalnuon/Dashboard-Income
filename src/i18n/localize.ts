@@ -68,7 +68,7 @@ export function localizeName(name: string | null | undefined, t: (key: Translati
 }
 
 export function localizeError(message: string | null | undefined, t: (key: TranslationKey) => string) {
-  if (!message) return t("toast.generic");
+  if (!message) return t("error.retryBody");
   const key = ERROR_MESSAGES[message];
-  return key ? t(key) : message;
+  return key ? t(key) : t("error.retryBody");
 }
